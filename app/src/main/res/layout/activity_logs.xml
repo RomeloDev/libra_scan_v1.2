@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".LogsActivity">
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="260dp"
+        android:layout_marginEnd="7dp"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/calistoga"
+        android:text="Logout"
+        android:gravity="center"
+        android:textSize="20sp"
+        android:drawableRight="@drawable/logout_svgrepo_com"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/print"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="7dp"
+        android:layout_marginEnd="260dp"
+        android:layout_marginTop="-35dp"
+        android:fontFamily="@font/calistoga"
+        android:text="Print"
+        android:gravity="center"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_marginTop="20dp"
+        app:srcCompat="@drawable/libra4" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:fontFamily="@font/calistoga"
+        android:text="Student Logs"
+        android:textAlignment="center"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="280dp"
+            android:layout_marginTop="15dp">
+
+            <TableLayout
+                android:id="@+id/logsTable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stretchColumns="1">
+
+                <!-- Header Row -->
+                <TableRow>
+                    <TextView android:text="Student ID" android:padding="8dp" android:textStyle="bold"/>
+                    <TextView android:text="Name" android:paddingTop="8dp"
+                        android:paddingBottom="8dp" android:paddingLeft="40dp"
+                        android:paddingRight="40dp" android:textStyle="bold"/>
+                    <TextView android:text="Course and Year" android:padding="8dp" android:textStyle="bold"/>
+                    <TextView android:text="Department" android:padding="8dp" android:textStyle="bold"/>
+                    <TextView android:text="Date" android:padding="8dp" android:textStyle="bold"/>
+                    <TextView android:text="Time" android:padding="8dp" android:textStyle="bold"/>
+                    <TextView android:text="Purpose" android:padding="8dp" android:textStyle="bold"/>
+                </TableRow>
+
+            </TableLayout>
+        </ScrollView>
+    </HorizontalScrollView>
+
+    <TextView
+        android:id="@+id/footerText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="© 2024 LibraScan. All Rights Reserved."
+        android:gravity="center"
+        android:textSize="14sp"
+        android:layout_marginTop="130dp"
+        android:textColor="@color/black"
+        android:padding="5dp"
+        />
+
+
+
+</LinearLayout>

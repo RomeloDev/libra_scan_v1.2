@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "187928230854",
+    "firebase_url": "https://crud-abe6f-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "crud-abe6f",
+    "storage_bucket": "crud-abe6f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:187928230854:android:6a5022a00c6e7ea176d0c7",
+        "android_client_info": {
+          "package_name": "com.example.crudtable"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI6ETYZQijFdihdB0DNZ1FARRW6pVZXmA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:187928230854:android:5c4c4b89b9b5742276d0c7",
+        "android_client_info": {
+          "package_name": "com.example.libraapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI6ETYZQijFdihdB0DNZ1FARRW6pVZXmA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:187928230854:android:3335bc8185bfc02c76d0c7",
+        "android_client_info": {
+          "package_name": "com.example.librascanapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI6ETYZQijFdihdB0DNZ1FARRW6pVZXmA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
