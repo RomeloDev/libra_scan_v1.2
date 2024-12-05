@@ -23,53 +23,57 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
-
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 
-import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.apache.poi.xwpf.usermodel.XWPFTable;
-import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class LogsActivity extends AppCompatActivity {
 
     private TableLayout logsTable;
     private TextView logoutText;
-    ArrayList<DataSnapshot> todayLogs;
+    private TextView printBtn;
+    private List<LogEntry> todayLogs = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_logs);
-
-        // Set up edge-to-edge UI
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
+        initializeViews();
+        fetchTodayLogs();
+    }
+
+
+    private void initializeViews() {
         logsTable = findViewById(R.id.logsTable);
         logoutText = findViewById(R.id.textView2);
+        printBtn = findViewById(R.id.print);
 
-        logoutText.setOnClickListener(v -> {
-            showLogoutDialog();
-        });
+        logoutText.setOnClickListener(v -> showLogoutDialog());
+        printBtn.setOnClickListener(v -> handlePrintAction());
+    }
 
-        fetchTodayLogs();
+    private void handlePrintAction() {
+        if (!todayLogs.isEmpty()) {
+            exportLogsToPDF();
+        } else {
+            showToast("No logs found for today");
+        }
     }
 
     private void fetchTodayLogs() {
@@ -80,120 +84,64 @@ public class LogsActivity extends AppCompatActivity {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         if (snapshot.exists()) {
-                            todayLogs = new ArrayList<>();
-                            for (DataSnapshot logSnapshot : snapshot.getChildren()) {
-                                for (DataSnapshot dateSnapshot : logSnapshot.getChildren()) {
+                            todayLogs.clear();
+                            for (DataSnapshot logEntry : snapshot.getChildren()) {
+                                for (DataSnapshot dateSnapshot : logEntry.getChildren()) {
                                     String timestamp = dateSnapshot.child("timestamp").getValue(String.class);
-
                                     if (timestamp != null && timestamp.startsWith(today)) {
-                                        todayLogs.add(dateSnapshot);
+                                        fetchStudentData(logEntry.getKey(), dateSnapshot);
                                     }
                                 }
                             }
-
-                            if (!todayLogs.isEmpty()) {
-                                displayLogs(todayLogs);
-                            } else {
-                                Toast.makeText(LogsActivity.this, "No logs found for today", Toast.LENGTH_SHORT).show();
-                            }
                         } else {
-                            Toast.makeText(LogsActivity.this, "No logs available", Toast.LENGTH_SHORT).show();
+                            showToast("No logs available");
                         }
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(LogsActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        showToast("Error: " + error.getMessage());
                     }
                 });
     }
 
-    private void displayLogs(ArrayList<DataSnapshot> logs) {
-        for (DataSnapshot logSnapshot : logs) {
-            String studentId = logSnapshot.getRef().getParent().getKey();
-            String purpose = logSnapshot.child("purpose").getValue(String.class);
-            String timestamp = logSnapshot.child("timestamp").getValue(String.class);
-
-            if (studentId != null && timestamp != null && purpose != null) {
-                String[] dateTime = timestamp.split(" ");
-                String date = dateTime[0];
-                String time = dateTime[1];
-
-                fetchStudentData(studentId, date, time, purpose);
-            }
-        }
-    }
-
-    private void fetchStudentData(String studentId, String date, String time, String purpose) {
+    private void fetchStudentData(String studentId, DataSnapshot logSnapshot) {
         FirebaseDatabase.getInstance().getReference("Students").child(studentId)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         if (snapshot.exists()) {
-                            String id = snapshot.child("id").getValue(String.class);
-                            String name = snapshot.child("name").getValue(String.class);
-                            String courseYr = snapshot.child("courseYr").getValue(String.class);
-                            String department = snapshot.child("department").getValue(String.class);
-
-                            if (id != null && name != null && courseYr != null && department != null) {
-                                addTableRow(id, name, courseYr, department, date, time, purpose);
-                            }
+                            LogEntry logEntry = new LogEntry(
+                                    snapshot.child("id").getValue(String.class),
+                                    snapshot.child("name").getValue(String.class),
+                                    snapshot.child("courseYr").getValue(String.class),
+                                    snapshot.child("department").getValue(String.class),
+                                    logSnapshot.child("timestamp").getValue(String.class),
+                                    logSnapshot.child("purpose").getValue(String.class)
+                            );
+                            todayLogs.add(logEntry);
+                            addLogToTable(logEntry);
                         }
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Toast.makeText(LogsActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        showToast("Error: " + error.getMessage());
                     }
                 });
     }
 
-    private void showLogoutDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // Handle logout logic here
-                        logoutAndRedirect();
-                    }
-                })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss(); // Close the dialog
-                    }
-                })
-                .show();
-    }
-
-    private void logoutAndRedirect() {
-        // Clear user session or preferences if needed
-        // For example, clear SharedPreferences:
-        SharedPreferences sharedPreferences = getSharedPreferences("UserSession", MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.clear();
-        editor.apply();
-
-        // Redirect to login activity
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK); // Clear back stack
-        startActivity(intent);
-        finish(); // Close current activity
-    }
-
-    private void addTableRow(String id, String name, String courseYr, String department, String date, String time, String purpose) {
+    private void addLogToTable(LogEntry logEntry) {
         TableRow tableRow = new TableRow(this);
         tableRow.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, TableRow.LayoutParams.WRAP_CONTENT));
 
-        tableRow.addView(createTextView(id));
-        tableRow.addView(createTextView(name));
-        tableRow.addView(createTextView(courseYr));
-        tableRow.addView(createTextView(department));
-        tableRow.addView(createTextView(date));
-        tableRow.addView(createTextView(time));
-        tableRow.addView(createTextView(purpose));
+        tableRow.addView(createTextView(logEntry.getId()));
+        tableRow.addView(createTextView(logEntry.getName()));
+        tableRow.addView(createTextView(logEntry.getCourseYr()));
+        tableRow.addView(createTextView(logEntry.getDepartment()));
+        tableRow.addView(createTextView(logEntry.getDate()));
+        tableRow.addView(createTextView(logEntry.getTime()));
+        tableRow.addView(createTextView(logEntry.getPurpose()));
 
         logsTable.addView(tableRow);
     }
@@ -206,6 +154,101 @@ public class LogsActivity extends AppCompatActivity {
         return textView;
     }
 
+    private void showLogoutDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setPositiveButton("Yes", (dialog, which) -> logoutAndRedirect())
+                .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
 
+    private void logoutAndRedirect() {
+        SharedPreferences sharedPreferences = getSharedPreferences("UserSession", MODE_PRIVATE);
+        sharedPreferences.edit().clear().apply();
 
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void exportLogsToPDF() {
+        String filePath = getExternalFilesDir(null) + "/LibraryLogs.pdf";
+
+        try {
+            PdfWriter writer = new PdfWriter(filePath);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            Document document = new Document(pdfDocument);
+
+            document.add(new Paragraph("Library Logs").setBold().setFontSize(20).setTextAlignment(TextAlignment.CENTER));
+
+            Table table = new Table(7);
+            String[] headers = {"ID", "Name", "Course & Year", "Department", "Date", "Time", "Purpose"};
+            for (String header : headers) {
+                table.addCell(new Cell().add(new Paragraph(header)));
+            }
+
+            for (LogEntry log : todayLogs) {
+                table.addCell(log.getId());
+                table.addCell(log.getName());
+                table.addCell(log.getCourseYr());
+                table.addCell(log.getDepartment());
+                table.addCell(log.getDate());
+                table.addCell(log.getTime());
+                table.addCell(log.getPurpose());
+            }
+
+            document.add(table);
+            document.close();
+            showToast("PDF saved at: " + filePath);
+        } catch (Exception e) {
+            showToast("Error creating PDF: " + e.getMessage());
+        }
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private static class LogEntry {
+        private final String id, name, courseYr, department, timestamp, purpose;
+
+        LogEntry(String id, String name, String courseYr, String department, String timestamp, String purpose) {
+            this.id = id;
+            this.name = name;
+            this.courseYr = courseYr;
+            this.department = department;
+            this.timestamp = timestamp;
+            this.purpose = purpose;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getCourseYr() {
+            return courseYr;
+        }
+
+        public String getDepartment() {
+            return department;
+        }
+
+        public String getDate() {
+            return timestamp.split(" ")[0];
+        }
+
+        public String getTime() {
+            return timestamp.split(" ")[1];
+        }
+
+        public String getPurpose() {
+            return purpose;
+        }
+    }
 }
