@@ -4,6 +4,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,41 +32,60 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.time.LocalDate;
 
 public class LogsActivity extends AppCompatActivity {
 
+    private static final String TAG = "LogsActivity";
     private TableLayout logsTable;
     private TextView logoutText;
     private TextView printBtn;
     private List<LogEntry> todayLogs = new ArrayList<>();
+    private static final String[] TABLE_HEADERS = {"ID", "Name", "Course & Year", "Department", "Date", "Time", "Purpose"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_logs);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
         initializeViews();
+        setupWindowInsets();
+
+        String userID = getIntent().getStringExtra("userID");
+        configurePrintButtonVisibility(userID);
+
+        logoutText.setOnClickListener(v -> showLogoutDialog());
+        printBtn.setOnClickListener(v -> handlePrintAction());
+
         fetchTodayLogs();
     }
-
 
     private void initializeViews() {
         logsTable = findViewById(R.id.logsTable);
         logoutText = findViewById(R.id.textView2);
         printBtn = findViewById(R.id.print);
+    }
 
-        logoutText.setOnClickListener(v -> showLogoutDialog());
-        printBtn.setOnClickListener(v -> handlePrintAction());
+    private void setupWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+    }
+
+    private void configurePrintButtonVisibility(String userID) {
+        if ("1413914".equals(userID)) {
+            printBtn.setVisibility(View.VISIBLE);
+        } else {
+            printBtn.setVisibility(View.GONE);
+        }
     }
 
     private void handlePrintAction() {
@@ -77,7 +97,7 @@ public class LogsActivity extends AppCompatActivity {
     }
 
     private void fetchTodayLogs() {
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String today = getFormattedDate();
 
         FirebaseDatabase.getInstance().getReference("Logs")
                 .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -100,7 +120,7 @@ public class LogsActivity extends AppCompatActivity {
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        showToast("Error: " + error.getMessage());
+                        showToast("Error fetching logs: " + error.getMessage());
                     }
                 });
     }
@@ -111,14 +131,7 @@ public class LogsActivity extends AppCompatActivity {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
                         if (snapshot.exists()) {
-                            LogEntry logEntry = new LogEntry(
-                                    snapshot.child("id").getValue(String.class),
-                                    snapshot.child("name").getValue(String.class),
-                                    snapshot.child("courseYr").getValue(String.class),
-                                    snapshot.child("department").getValue(String.class),
-                                    logSnapshot.child("timestamp").getValue(String.class),
-                                    logSnapshot.child("purpose").getValue(String.class)
-                            );
+                            LogEntry logEntry = createLogEntry(snapshot, logSnapshot);
                             todayLogs.add(logEntry);
                             addLogToTable(logEntry);
                         }
@@ -126,22 +139,29 @@ public class LogsActivity extends AppCompatActivity {
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        showToast("Error: " + error.getMessage());
+                        showToast("Error fetching student data: " + error.getMessage());
                     }
                 });
+    }
+
+    private LogEntry createLogEntry(DataSnapshot studentSnapshot, DataSnapshot logSnapshot) {
+        return new LogEntry(
+                safeGetString(studentSnapshot, "id"),
+                safeGetString(studentSnapshot, "name"),
+                safeGetString(studentSnapshot, "courseYr"),
+                safeGetString(studentSnapshot, "department"),
+                safeGetString(logSnapshot, "timestamp"),
+                safeGetString(logSnapshot, "purpose")
+        );
     }
 
     private void addLogToTable(LogEntry logEntry) {
         TableRow tableRow = new TableRow(this);
         tableRow.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, TableRow.LayoutParams.WRAP_CONTENT));
 
-        tableRow.addView(createTextView(logEntry.getId()));
-        tableRow.addView(createTextView(logEntry.getName()));
-        tableRow.addView(createTextView(logEntry.getCourseYr()));
-        tableRow.addView(createTextView(logEntry.getDepartment()));
-        tableRow.addView(createTextView(logEntry.getDate()));
-        tableRow.addView(createTextView(logEntry.getTime()));
-        tableRow.addView(createTextView(logEntry.getPurpose()));
+        for (String value : logEntry.getAllFields()) {
+            tableRow.addView(createTextView(value));
+        }
 
         logsTable.addView(tableRow);
     }
@@ -164,51 +184,66 @@ public class LogsActivity extends AppCompatActivity {
     }
 
     private void logoutAndRedirect() {
-        SharedPreferences sharedPreferences = getSharedPreferences("UserSession", MODE_PRIVATE);
-        sharedPreferences.edit().clear().apply();
-
+        clearUserSession();
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
     }
 
-    private void exportLogsToPDF() {
-        String filePath = getExternalFilesDir(null) + "/LibraryLogs.pdf";
+    private void clearUserSession() {
+        SharedPreferences sharedPreferences = getSharedPreferences("UserSession", MODE_PRIVATE);
+        sharedPreferences.edit().clear().apply();
+    }
 
-        try {
-            PdfWriter writer = new PdfWriter(filePath);
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            Document document = new Document(pdfDocument);
+    private void exportLogsToPDF() {
+        String filePath = createFilePath();
+
+        try (PdfWriter writer = new PdfWriter(filePath);
+             PdfDocument pdfDocument = new PdfDocument(writer);
+             Document document = new Document(pdfDocument)) {
 
             document.add(new Paragraph("Library Logs").setBold().setFontSize(20).setTextAlignment(TextAlignment.CENTER));
-
-            Table table = new Table(7);
-            String[] headers = {"ID", "Name", "Course & Year", "Department", "Date", "Time", "Purpose"};
-            for (String header : headers) {
-                table.addCell(new Cell().add(new Paragraph(header)));
-            }
-
-            for (LogEntry log : todayLogs) {
-                table.addCell(log.getId());
-                table.addCell(log.getName());
-                table.addCell(log.getCourseYr());
-                table.addCell(log.getDepartment());
-                table.addCell(log.getDate());
-                table.addCell(log.getTime());
-                table.addCell(log.getPurpose());
-            }
-
-            document.add(table);
-            document.close();
+            document.add(createPDFTable());
             showToast("PDF saved at: " + filePath);
+
         } catch (Exception e) {
+            Log.e(TAG, "Error creating PDF", e);
             showToast("Error creating PDF: " + e.getMessage());
         }
     }
 
+    private String createFilePath() {
+        File dir = getExternalFilesDir(null);
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+        return dir + "/LibraryLogs of " + LocalDate.now() + ".pdf";
+    }
+
+    private Table createPDFTable() {
+        Table table = new Table(TABLE_HEADERS.length);
+        for (String header : TABLE_HEADERS) {
+            table.addCell(new Cell().add(new Paragraph(header)));
+        }
+        for (LogEntry log : todayLogs) {
+            for (String value : log.getAllFields()) {
+                table.addCell(new Cell().add(new Paragraph(value)));
+            }
+        }
+        return table;
+    }
+
+    private String getFormattedDate() {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+    }
+
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private String safeGetString(DataSnapshot snapshot, String key) {
+        return snapshot.child(key).getValue(String.class) != null ? snapshot.child(key).getValue(String.class) : "N/A";
     }
 
     private static class LogEntry {
@@ -223,32 +258,24 @@ public class LogsActivity extends AppCompatActivity {
             this.purpose = purpose;
         }
 
-        public String getId() {
-            return id;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getCourseYr() {
-            return courseYr;
-        }
-
-        public String getDepartment() {
-            return department;
+        public String[] getAllFields() {
+            return new String[]{
+                    id,
+                    name,
+                    courseYr,
+                    department,
+                    getDate(),
+                    getTime(),
+                    purpose
+            };
         }
 
         public String getDate() {
-            return timestamp.split(" ")[0];
+            return timestamp.contains(" ") ? timestamp.split(" ")[0] : "N/A";
         }
 
         public String getTime() {
-            return timestamp.split(" ")[1];
-        }
-
-        public String getPurpose() {
-            return purpose;
+            return timestamp.contains(" ") ? timestamp.split(" ")[1] : "N/A";
         }
     }
 }

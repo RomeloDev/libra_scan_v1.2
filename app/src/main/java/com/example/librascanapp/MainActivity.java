@@ -58,7 +58,12 @@ public class MainActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(studentId)){
             Toast.makeText(this, "Please Enter your Student ID", Toast.LENGTH_SHORT).show();
             return;
-        }else {
+        }else if(idField.getText().toString().equals("1413914")){
+            Intent intent = new Intent(MainActivity.this, LogsActivity.class);
+            intent.putExtra("userID", idField.getText().toString());
+            startActivity(intent);
+        }
+        else {
             studentsRef.orderByChild("id").equalTo(studentId)
                     .addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
@@ -71,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 Intent intent = new Intent(MainActivity.this, HomeActivity.class);
                                 intent.putExtra("StudentId", getId);
+                                intent.putExtra("userID", idField.getText().toString());
                                 startActivity(intent);
                                 finish();
                             } else {

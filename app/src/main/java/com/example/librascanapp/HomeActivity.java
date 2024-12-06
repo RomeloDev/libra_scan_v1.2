@@ -2,12 +2,14 @@ package com.example.librascanapp;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -47,6 +49,7 @@ public class HomeActivity extends AppCompatActivity {
     private String selectedPurpose, studentID;
     private List<String> purposeOption;
     private boolean isFirstItemRemoved = false;
+    private EditText others;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +71,7 @@ public class HomeActivity extends AppCompatActivity {
         nameView = findViewById(R.id.nameText);
         courseView = findViewById(R.id.courseText);
         departmentView = findViewById(R.id.departmentText);
+        others = findViewById(R.id.others);
 
         studentID = getIntent().getStringExtra("StudentId");
         if (studentID == null || studentID.isEmpty()) {
@@ -106,6 +110,7 @@ public class HomeActivity extends AppCompatActivity {
         purposeOption.add("Select Here:");
         purposeOption.add("Study");
         purposeOption.add("Research");
+        purposeOption.add("Others");
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, purposeOption);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -149,10 +154,21 @@ public class HomeActivity extends AppCompatActivity {
                             if (selectedPurpose.equals("Select Here:")){
                                 Toast.makeText(HomeActivity.this, "Please Select purpose of visit", Toast.LENGTH_SHORT).show();
                                 return false;
+                            }
+                            else if(selectedPurpose.equals("Others")) {
+                                if (TextUtils.isEmpty(others.getText().toString())) {
+                                    Toast.makeText(HomeActivity.this, "Please Specify in TextField below!", Toast.LENGTH_SHORT).show();
+                                    return false;
+                                } else {
+                                    selectedPurpose = others.getText().toString();
+                                    initiateQRScan();  // Launch QR scanner
+                                }
                             }else {
                                 initiateQRScan();  // Launch QR scanner
                                 return true;
                             }
+
+
                         } else if (item.getItemId() == R.id.settings) {
                             Toast.makeText(HomeActivity.this, "Settings Selected", Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(HomeActivity.this, SettingsActivity.class);
@@ -255,7 +271,9 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(Void unused) {
                         Toast.makeText(HomeActivity.this, "Log submitted successfully", Toast.LENGTH_SHORT).show();
+                        String userID  = getIntent().getStringExtra("userID");
                         Intent intent = new Intent(HomeActivity.this, LogsActivity.class);
+                        intent.putExtra("userID", userID);
                         startActivity(intent);
                         finish();
                     }
